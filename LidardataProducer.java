@@ -8,6 +8,8 @@ import thesis.common.GlobalConfig;
 import thesis.context.data.LidarData;
 import thesis.context.data.Point3D;
 import thesis.context.data.PointCloud;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 
 import java.io.IOException;
 import java.nio.file.Files; 
@@ -17,16 +19,18 @@ import java.util.List;
 import java.util.Properties;
 
 public class LidardataProducer {
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     public static void main(String[] args) {
-        KafkaProducer<String, PointCloud> producer = createProducer(); // Change producer type
+        KafkaProducer<String, String> producer = createProducer(); // Change producer type
 
         // Read data from multiple CSV files
         try {
             List<PointCloud> lidarDataList = readCSVFiles(); // Change list type
             for (PointCloud lidarData : lidarDataList) { // Iterate over LidarData objects
                 System.out.println("Data Send" + lidarData);
-                ProducerRecord<String, PointCloud> record = new ProducerRecord<>("p1", lidarData);
+                String json = objectMapper.writeValueAsString(lidarData); // Convert to JSON
+                ProducerRecord<String, String> record = new ProducerRecord<>("p1", json);
                 producer.send(record);
             }
         } catch (IOException e) {
@@ -36,14 +40,15 @@ public class LidardataProducer {
         }
     }
 
-    private static KafkaProducer<String, PointCloud> createProducer() {
+    private static KafkaProducer<String, String> createProducer() {
         // Set up Kafka producer properties
         Properties properties = new Properties();
         properties.put("bootstrap.servers", "192.168.221.213:9092");
         properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
-        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, LidarSerial.class.getName());
+        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         return new KafkaProducer<>(properties);
     }
+    
     private static List<PointCloud> readCSVFiles() throws IOException {
         List<PointCloud> lidarDataList = new ArrayList<>();
         // Iterate over CSV files
